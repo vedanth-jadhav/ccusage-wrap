@@ -48,21 +48,20 @@ function parseAsciiNumber(value: Uint8Array): number | null {
     n = n * 10 + (c - 48);
     if (!Number.isSafeInteger(n)) return null;
   }
+  if (!(n >= 0)) return null;
   return Math.trunc(n);
 }
 
 function boundedPercent(value: number): number {
-  const whole = Math.trunc(value);
-  if (whole < 0) return 0;
-  if (whole > 100) return 100;
-  return whole;
+  if (!(value >= 0)) return 0;
+  if (value > 100) return 100;
+  return Math.trunc(value);
 }
 
 function boundedSeconds(value: number): number {
-  const whole = Math.trunc(value);
-  if (whole < 0) return 0;
-  if (whole > MAX_WINDOW_SECONDS) return MAX_WINDOW_SECONDS;
-  return whole;
+  if (!(value >= 0)) return 0;
+  if (value > MAX_WINDOW_SECONDS) return MAX_WINDOW_SECONDS;
+  return Math.trunc(value);
 }
 
 function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWindowSnapshot | null {
@@ -71,13 +70,16 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   const windowSeconds = parseAsciiNumber(lineValue(body, `${prefix}_seconds`));
   const expectedUsedPercent = parseAsciiNumber(lineValue(body, `${prefix}_expected`));
   if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null) return null;
+  const boundedUsed = boundedPercent(usedPercent);
+  const boundedReset = boundedSeconds(resetInSeconds);
   const boundedWindow = boundedSeconds(windowSeconds);
+  const boundedExpected = boundedPercent(expectedUsedPercent);
   if (boundedWindow <= 0) return null;
   return {
-    usedPercent: boundedPercent(usedPercent),
-    resetInSeconds: boundedSeconds(resetInSeconds),
+    usedPercent: boundedUsed,
+    resetInSeconds: boundedReset,
     windowSeconds: boundedWindow,
-    expectedUsedPercent: boundedPercent(expectedUsedPercent),
+    expectedUsedPercent: boundedExpected,
   };
 }
 
