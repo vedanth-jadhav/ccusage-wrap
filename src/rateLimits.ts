@@ -23,7 +23,7 @@ export interface PaceSnapshot {
 }
 
 const EMPTY = asciiBytes("");
-const MAX_WINDOW_SECONDS = 31_536_000;
+const MAX_WINDOW_SECONDS = 31536000;
 
 function lineValue(body: Uint8Array, key: string): Uint8Array {
   const prefix = asciiBytes(`${key}=`);
@@ -60,10 +60,20 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null) return null;
   if (!(usedPercent >= 0) || !(resetInSeconds >= 0) || !(windowSeconds > 0) || !(expectedUsedPercent >= 0)) return null;
 
+  let safeReset = Math.trunc(resetInSeconds);
+  if (!(safeReset >= 0)) return null;
+  if (safeReset > MAX_WINDOW_SECONDS) safeReset = MAX_WINDOW_SECONDS;
+  if (!(safeReset <= MAX_WINDOW_SECONDS)) return null;
+
+  let safeWindow = Math.trunc(windowSeconds);
+  if (!(safeWindow > 0)) return null;
+  if (safeWindow > MAX_WINDOW_SECONDS) safeWindow = MAX_WINDOW_SECONDS;
+  if (!(safeWindow <= MAX_WINDOW_SECONDS)) return null;
+
   return {
     usedPercent: Math.trunc(usedPercent > 100 ? 100 : usedPercent),
-    resetInSeconds: Math.trunc(resetInSeconds > MAX_WINDOW_SECONDS ? MAX_WINDOW_SECONDS : resetInSeconds),
-    windowSeconds: Math.trunc(windowSeconds > MAX_WINDOW_SECONDS ? MAX_WINDOW_SECONDS : windowSeconds),
+    resetInSeconds: Math.trunc(safeReset),
+    windowSeconds: Math.trunc(safeWindow),
     expectedUsedPercent: Math.trunc(expectedUsedPercent > 100 ? 100 : expectedUsedPercent),
   };
 }
