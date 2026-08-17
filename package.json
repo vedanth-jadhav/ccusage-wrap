@@ -1,16 +1,13 @@
 {
-	"name": "ccusage-monorepo",
-	"version": "20.0.20",
-	"private": true,
-	"workspaces": [
-		"apps/*",
-		"docs",
-		"packages/*"
-	],
-	"type": "module",
-	"scripts": {
-		"preinstall": "npx only-allow pnpm"
-	},
-	"dependencies": {},
-	"packageManager": "pnpm@11.21.0"
+  "scripts": {
+    "dev": "native dev",
+    "build": "native build --yes",
+    "export": "native export --yes",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@native-sdk/cli": "latest",
+    "@native-sdk/core": "latest",
+    "tsx": "latest"
+  }
 }

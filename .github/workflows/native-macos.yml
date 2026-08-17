@@ -1,0 +1,36 @@
+name: Native macOS
+
+on:
+  push:
+    paths:
+      - 'package.json'
+      - 'app.zon'
+      - 'src/**'
+      - 'tests/**'
+      - 'THIRD_PARTY_NOTICES.md'
+      - '.github/workflows/native-macos.yml'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'app.zon'
+      - 'src/**'
+      - 'tests/**'
+      - 'THIRD_PARTY_NOTICES.md'
+      - '.github/workflows/native-macos.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: macos-14
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install project dev dependencies
+        run: npm install --ignore-scripts
+      - name: Run unit and performance regression tests
+        run: npm test
+      - name: Verify app builds
+        run: npm run build
