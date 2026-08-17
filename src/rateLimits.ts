@@ -61,19 +61,14 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   if (!(usedPercent >= 0) || !(resetInSeconds >= 0) || !(windowSeconds > 0) || !(expectedUsedPercent >= 0)) return null;
 
   let safeReset = Math.trunc(resetInSeconds);
-  if (!(safeReset >= 0)) return null;
   if (safeReset > MAX_WINDOW_SECONDS) safeReset = MAX_WINDOW_SECONDS;
-  if (!(safeReset <= MAX_WINDOW_SECONDS)) return null;
-
   let safeWindow = Math.trunc(windowSeconds);
-  if (!(safeWindow > 0)) return null;
   if (safeWindow > MAX_WINDOW_SECONDS) safeWindow = MAX_WINDOW_SECONDS;
-  if (!(safeWindow <= MAX_WINDOW_SECONDS)) return null;
 
   return {
     usedPercent: Math.trunc(usedPercent > 100 ? 100 : usedPercent),
-    resetInSeconds: Math.trunc(safeReset),
-    windowSeconds: Math.trunc(safeWindow),
+    resetInSeconds: safeReset / 1.0,
+    windowSeconds: safeWindow / 1.0,
     expectedUsedPercent: Math.trunc(expectedUsedPercent > 100 ? 100 : expectedUsedPercent),
   };
 }
