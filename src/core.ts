@@ -91,8 +91,9 @@ R=$(mktemp /tmp/ccusage-limits.XXXXXX); trap '/bin/rm -f "$R"' EXIT
 if [ -n "$I" ]; then /usr/bin/curl -fsSL --max-time 12 -H "Authorization: Bearer $T" -H "Accept: application/json" -H "ChatGPT-Account-Id: $I" https://chatgpt.com/backend-api/wham/usage -o "$R"; else /usr/bin/curl -fsSL --max-time 12 -H "Authorization: Bearer $T" -H "Accept: application/json" https://chatgpt.com/backend-api/wham/usage -o "$R"; fi
 v(){ /usr/bin/plutil -extract "$1" raw -o - "$R" 2>/dev/null || true; }
 N=$(/bin/date +%s)
-PU=$(v rate_limit.primary_window.used_percent); PR=$(v rate_limit.primary_window.reset_at); PS=$(v rate_limit.primary_window.limit_window_seconds)
-SU=$(v rate_limit.secondary_window.used_percent); SR=$(v rate_limit.secondary_window.reset_at); SS=$(v rate_limit.secondary_window.limit_window_seconds)
+normpct(){ /usr/bin/awk -v v="$1" 'BEGIN { if (v ~ /^[0-9]+([.][0-9]+)?$/) printf "%.0f", v; }'; }
+PU=$(normpct "$(v rate_limit.primary_window.used_percent)"); PR=$(v rate_limit.primary_window.reset_at); PS=$(v rate_limit.primary_window.limit_window_seconds)
+SU=$(normpct "$(v rate_limit.secondary_window.used_percent)"); SR=$(v rate_limit.secondary_window.reset_at); SS=$(v rate_limit.secondary_window.limit_window_seconds)
 PRI=0; PE=0; SRI=0; SE=0
 if [ -n "$PR" ] && [ -n "$PS" ] && [ "$PS" -gt 0 ] 2>/dev/null; then PRI=$((PR>N ? PR-N : 0)); PE=$(((PS-PRI)*100/PS)); fi
 if [ -n "$SR" ] && [ -n "$SS" ] && [ "$SS" -gt 0 ] 2>/dev/null; then SRI=$((SR>N ? SR-N : 0)); SE=$(((SS-SRI)*100/SS)); fi
@@ -144,22 +145,27 @@ export function update(model: Model, msg: Msg): [Model, Cmd<Msg>] {
   }
 }
 
-function percentBytes(value: number): Uint8Array { return asciiBytes(`${Math.round(value)}%`); }
+function percentBytes(value: number): Uint8Array { return asciiBytes(`${value}%`); }
 function windowFor(model: Model, kind: "primary" | "secondary") { return model.rateSnapshot === null ? null : model.rateSnapshot[kind]; }
 function resetBytes(seconds: number | null): Uint8Array {
   if (seconds === null) return asciiBytes("Unavailable");
-  const minutes = Math.ceil(seconds / 60);
-  if (minutes < 60) return asciiBytes(`${minutes}m`);
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return asciiBytes(mins === 0 ? `${hours}h` : `${hours}h ${mins}m`);
+  let remaining = seconds;
+  let hours = 0;
+  while (remaining >= 3600) { remaining -= 3600; hours += 1; }
+  let minutes = 0;
+  while (remaining >= 60) { remaining -= 60; minutes += 1; }
+  if (remaining > 0) minutes += 1;
+  if (minutes >= 60) { hours += 1; minutes = 0; }
+  if (hours === 0) return asciiBytes(`${minutes}m`);
+  return asciiBytes(minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`);
 }
 function paceLabel(model: Model, kind: "primary" | "secondary"): Uint8Array {
   const pace = paceFor(windowFor(model, kind));
   if (pace === null) return asciiBytes("Waiting for live data");
   if (pace.status === "on_track") return asciiBytes("On pace with this window");
-  if (pace.status === "ahead") return asciiBytes(`${Math.round(Math.abs(pace.deltaPercent))} pts faster than elapsed time`);
-  return asciiBytes(`${Math.round(Math.abs(pace.deltaPercent))} pts below elapsed time`);
+  const absoluteDelta = pace.deltaPercent < 0 ? -pace.deltaPercent : pace.deltaPercent;
+  if (pace.status === "ahead") return asciiBytes(`${absoluteDelta} pts faster than elapsed time`);
+  return asciiBytes(`${absoluteDelta} pts below elapsed time`);
 }
 
 export function usageSelected(model: Model): boolean { return model.section === "usage"; }

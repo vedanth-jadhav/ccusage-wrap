@@ -56,11 +56,14 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   const windowSeconds = parseAsciiNumber(lineValue(body, `${prefix}_seconds`));
   const expectedUsedPercent = parseAsciiNumber(lineValue(body, `${prefix}_expected`));
   if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null || windowSeconds <= 0) return null;
+  const boundedUsed = usedPercent < 0 ? 0 : usedPercent > 100 ? 100 : usedPercent;
+  const boundedReset = resetInSeconds < 0 ? 0 : resetInSeconds;
+  const boundedExpected = expectedUsedPercent < 0 ? 0 : expectedUsedPercent > 100 ? 100 : expectedUsedPercent;
   return {
-    usedPercent: Math.max(0, Math.min(100, usedPercent)),
-    resetInSeconds: Math.max(0, resetInSeconds),
+    usedPercent: boundedUsed,
+    resetInSeconds: boundedReset,
     windowSeconds,
-    expectedUsedPercent: Math.max(0, Math.min(100, expectedUsedPercent)),
+    expectedUsedPercent: boundedExpected,
   };
 }
 
@@ -75,10 +78,12 @@ export function parseRateLimitProbe(body: Uint8Array): RateLimitSnapshot | null 
 export function paceFor(window: RateWindowSnapshot | null): PaceSnapshot | null {
   if (window === null) return null;
   const delta = window.usedPercent - window.expectedUsedPercent;
+  const absoluteDelta = delta < 0 ? -delta : delta;
+  const remaining = 100 - window.usedPercent;
   return {
     expectedUsedPercent: window.expectedUsedPercent,
     deltaPercent: delta,
-    remainingPercent: Math.max(0, 100 - window.usedPercent),
-    status: Math.abs(delta) <= 6 ? "on_track" : delta > 0 ? "ahead" : "behind",
+    remainingPercent: remaining < 0 ? 0 : remaining,
+    status: absoluteDelta <= 6 ? "on_track" : delta > 0 ? "ahead" : "behind",
   };
 }
