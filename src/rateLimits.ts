@@ -1,6 +1,6 @@
 import { asciiBytes } from "@native-sdk/core";
 
-export type RateLimitState = "idle" | "loading" | "ready" | "error";
+export type RateLimitState = "idle" | "loading" | "ready" | "failed";
 
 export interface RateWindowSnapshot {
   readonly usedPercent: number;
