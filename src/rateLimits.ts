@@ -62,10 +62,10 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   if (expectedUsedPercent < 0 || expectedUsedPercent > 1000000) return null;
 
   return {
-    usedPercent: usedPercent > 100 ? 100 : usedPercent,
-    resetHours,
-    resetMinutes,
-    expectedUsedPercent: expectedUsedPercent > 100 ? 100 : expectedUsedPercent,
+    usedPercent: Math.trunc(usedPercent > 100 ? 100 : usedPercent),
+    resetHours: Math.trunc(resetHours),
+    resetMinutes: Math.trunc(resetMinutes),
+    expectedUsedPercent: Math.trunc(expectedUsedPercent > 100 ? 100 : expectedUsedPercent),
   };
 }
 
