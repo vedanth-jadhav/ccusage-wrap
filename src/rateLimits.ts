@@ -45,7 +45,7 @@ function parseAsciiNumber(value: Uint8Array): number | null {
     const c = value[i];
     if (c < 48 || c > 57) return null;
     n = n * 10 + (c - 48);
-    if (n > 1000000) return null;
+    if (n < 0 || n > 1000000) return null;
   }
   return n;
 }
@@ -56,7 +56,10 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   const resetMinutes = parseAsciiNumber(lineValue(body, `${prefix}_reset_minutes`));
   const expectedUsedPercent = parseAsciiNumber(lineValue(body, `${prefix}_expected`));
   if (usedPercent === null || resetHours === null || resetMinutes === null || expectedUsedPercent === null) return null;
-  if (resetHours > 8760 || resetMinutes > 59) return null;
+  if (usedPercent < 0 || usedPercent > 1000000) return null;
+  if (resetHours < 0 || resetHours > 8760) return null;
+  if (resetMinutes < 0 || resetMinutes > 59) return null;
+  if (expectedUsedPercent < 0 || expectedUsedPercent > 1000000) return null;
 
   return {
     usedPercent: usedPercent > 100 ? 100 : usedPercent,
