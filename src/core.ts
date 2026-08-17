@@ -171,7 +171,6 @@ function paceLabel(model: Model, kind: "primary" | "secondary"): Uint8Array {
 export function usageSelected(model: Model): boolean { return model.section === "usage"; }
 export function limitsSelected(model: Model): boolean { return model.section === "limits"; }
 export function usageVisible(model: Model): boolean { return model.section === "usage"; }
-export function limitsVisible(model: Model): boolean { return model.section === "limits"; }
 export function rateRefreshDisabled(model: Model): boolean { return model.rateState === "loading"; }
 export function ratePlan(model: Model): Uint8Array { return model.rateSnapshot === null ? asciiBytes("Codex") : model.rateSnapshot.plan; }
 export function rateDetail(model: Model): Uint8Array { return model.rateDetailText; }
