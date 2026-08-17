@@ -146,7 +146,10 @@ export function update(model: Model, msg: Msg): [Model, Cmd<Msg>] {
 }
 
 function percentBytes(value: number): Uint8Array { return asciiBytes(`${value}%`); }
-function windowFor(model: Model, kind: "primary" | "secondary") { return model.rateSnapshot === null ? null : model.rateSnapshot[kind]; }
+function windowFor(model: Model, kind: "primary" | "secondary") {
+  if (model.rateSnapshot === null) return null;
+  return kind === "primary" ? model.rateSnapshot.primary : model.rateSnapshot.secondary;
+}
 function resetBytes(seconds: number | null): Uint8Array {
   if (seconds === null) return asciiBytes("Unavailable");
   let remaining = seconds;
