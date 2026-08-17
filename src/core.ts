@@ -177,10 +177,10 @@ export function weeklyUsed(model: Model): Uint8Array { const w=windowFor(model,"
 export function weeklyRemaining(model: Model): Uint8Array { const p=paceFor(windowFor(model,"secondary")); return p === null ? asciiBytes("--") : percentBytes(p.remainingPercent); }
 export function weeklyReset(model: Model): Uint8Array { const w=windowFor(model,"secondary"); return resetBytes(w === null ? null : w.resetInSeconds); }
 export function weeklyPace(model: Model): Uint8Array { return paceLabel(model,"secondary"); }
-export function fiveHourUsageSeries(model: Model): readonly number[] { const w=windowFor(model,"primary"); return w === null ? EMPTY_SERIES : [w.usedPercent/100]; }
-export function fiveHourTimeSeries(model: Model): readonly number[] { const p=paceFor(windowFor(model,"primary")); return p === null ? EMPTY_SERIES : [p.expectedUsedPercent/100]; }
-export function weeklyUsageSeries(model: Model): readonly number[] { const w=windowFor(model,"secondary"); return w === null ? EMPTY_SERIES : [w.usedPercent/100]; }
-export function weeklyTimeSeries(model: Model): readonly number[] { const p=paceFor(windowFor(model,"secondary")); return p === null ? EMPTY_SERIES : [p.expectedUsedPercent/100]; }
+export function fiveHourUsageSeries(model: Model): readonly number[] { const w=windowFor(model,"primary"); return w === null ? EMPTY_SERIES : [w.usedPercent]; }
+export function fiveHourTimeSeries(model: Model): readonly number[] { const p=paceFor(windowFor(model,"primary")); return p === null ? EMPTY_SERIES : [p.expectedUsedPercent]; }
+export function weeklyUsageSeries(model: Model): readonly number[] { const w=windowFor(model,"secondary"); return w === null ? EMPTY_SERIES : [w.usedPercent]; }
+export function weeklyTimeSeries(model: Model): readonly number[] { const p=paceFor(windowFor(model,"secondary")); return p === null ? EMPTY_SERIES : [p.expectedUsedPercent]; }
 
 export function updateActionLabel(model: Model): Uint8Array { if (model.updateState === "available") return INSTALL_UPDATE; if (model.updateState === "staging") return INSTALLING; if (model.updateState === "restarting") return RESTARTING; return CHECK_UPDATES; }
 export function updateVersionText(model: Model): Uint8Array { return model.updateState === "available" ? model.updateVersion : CURRENT_VERSION; }
