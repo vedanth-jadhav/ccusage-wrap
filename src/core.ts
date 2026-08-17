@@ -88,16 +88,20 @@ T=$(/usr/bin/plutil -extract tokens.access_token raw -o - "$A" 2>/dev/null || /u
 [ -n "$T" ] || { echo token_missing; exit 42; }
 I=$(/usr/bin/plutil -extract tokens.account_id raw -o - "$A" 2>/dev/null || /usr/bin/plutil -extract tokens.accountId raw -o - "$A" 2>/dev/null || true)
 R=$(mktemp /tmp/ccusage-limits.XXXXXX); trap '/bin/rm -f "$R"' EXIT
-if [ -n "$I" ]; then /usr/bin/curl -fsSL --max-time 12 -H "Authorization: Bearer $T" -H "Accept: application/json" -H "ChatGPT-Account-Id: $I" https://chatgpt.com/backend-api/wham/usage -o "$R"; else /usr/bin/curl -fsSL --max-time 12 -H "Authorization: Bearer $T" -H "Accept: application/json" https://chatgpt.com/backend-api/wham/usage -o "$R"; fi
+{
+  printf 'header = "Authorization: Bearer %s"\n' "$T"
+  printf 'header = "Accept: application/json"\n'
+  if [ -n "$I" ]; then printf 'header = "ChatGPT-Account-Id: %s"\n' "$I"; fi
+} | /usr/bin/curl -fsSL --max-time 12 --config - https://chatgpt.com/backend-api/wham/usage -o "$R"
 v(){ /usr/bin/plutil -extract "$1" raw -o - "$R" 2>/dev/null || true; }
 N=$(/bin/date +%s)
 normpct(){ /usr/bin/awk -v v="$1" 'BEGIN { if (v ~ /^[0-9]+([.][0-9]+)?$/) printf "%.0f", v; }'; }
 PU=$(normpct "$(v rate_limit.primary_window.used_percent)"); PR=$(v rate_limit.primary_window.reset_at); PS=$(v rate_limit.primary_window.limit_window_seconds)
 SU=$(normpct "$(v rate_limit.secondary_window.used_percent)"); SR=$(v rate_limit.secondary_window.reset_at); SS=$(v rate_limit.secondary_window.limit_window_seconds)
-PRI=0; PE=0; SRI=0; SE=0
-if [ -n "$PR" ] && [ -n "$PS" ] && [ "$PS" -gt 0 ] 2>/dev/null; then PRI=$((PR>N ? PR-N : 0)); PE=$(((PS-PRI)*100/PS)); fi
-if [ -n "$SR" ] && [ -n "$SS" ] && [ "$SS" -gt 0 ] 2>/dev/null; then SRI=$((SR>N ? SR-N : 0)); SE=$(((SS-SRI)*100/SS)); fi
-printf 'plan=%s\nprimary_used=%s\nprimary_reset_in=%s\nprimary_seconds=%s\nprimary_expected=%s\nsecondary_used=%s\nsecondary_reset_in=%s\nsecondary_seconds=%s\nsecondary_expected=%s\n' "$(v plan_type)" "$PU" "$PRI" "$PS" "$PE" "$SU" "$SRI" "$SS" "$SE"
+PRI=0; PE=0; PRH=0; PRM=0; SRI=0; SE=0; SRH=0; SRM=0
+if [ -n "$PR" ] && [ -n "$PS" ] && [ "$PS" -gt 0 ] 2>/dev/null; then PRI=$((PR>N ? PR-N : 0)); PE=$(((PS-PRI)*100/PS)); PRH=$((PRI/3600)); PRM=$(((PRI%3600+59)/60)); if [ "$PRM" -ge 60 ]; then PRH=$((PRH+1)); PRM=0; fi; fi
+if [ -n "$SR" ] && [ -n "$SS" ] && [ "$SS" -gt 0 ] 2>/dev/null; then SRI=$((SR>N ? SR-N : 0)); SE=$(((SS-SRI)*100/SS)); SRH=$((SRI/3600)); SRM=$(((SRI%3600+59)/60)); if [ "$SRM" -ge 60 ]; then SRH=$((SRH+1)); SRM=0; fi; fi
+printf 'plan=%s\nprimary_used=%s\nprimary_reset_hours=%s\nprimary_reset_minutes=%s\nprimary_expected=%s\nsecondary_used=%s\nsecondary_reset_hours=%s\nsecondary_reset_minutes=%s\nsecondary_expected=%s\n' "$(v plan_type)" "$PU" "$PRH" "$PRM" "$PE" "$SU" "$SRH" "$SRM" "$SE"
 `);
 
 export function initialModel(): [Model, Cmd<Msg>] {
@@ -150,18 +154,11 @@ function windowFor(model: Model, kind: "primary" | "secondary") {
   if (model.rateSnapshot === null) return null;
   return kind === "primary" ? model.rateSnapshot.primary : model.rateSnapshot.secondary;
 }
-function resetBytes(seconds: number | null): Uint8Array {
-  if (seconds === null) return asciiBytes("Unavailable");
-  let remaining = seconds;
-  let hours = 0;
-  while (remaining >= 3600) { remaining -= 3600; hours += 1; }
-  let minutes = 0;
-  while (remaining >= 60) { remaining -= 60; minutes += 1; }
-  if (remaining > 0) minutes += 1;
-  if (minutes >= 60) { hours += 1; minutes = 0; }
+function resetBytes(hours: number, minutes: number): Uint8Array {
   if (hours === 0) return asciiBytes(`${minutes}m`);
   return asciiBytes(minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`);
 }
+
 function paceLabel(model: Model, kind: "primary" | "secondary"): Uint8Array {
   const pace = paceFor(windowFor(model, kind));
   if (pace === null) return asciiBytes("Waiting for live data");
@@ -180,11 +177,11 @@ export function ratePlan(model: Model): Uint8Array { return model.rateSnapshot =
 export function rateDetail(model: Model): Uint8Array { return model.rateDetailText; }
 export function fiveHourUsed(model: Model): Uint8Array { const w=windowFor(model,"primary"); return w === null ? asciiBytes("--") : percentBytes(w.usedPercent); }
 export function fiveHourRemaining(model: Model): Uint8Array { const p=paceFor(windowFor(model,"primary")); return p === null ? asciiBytes("--") : percentBytes(p.remainingPercent); }
-export function fiveHourReset(model: Model): Uint8Array { const w=windowFor(model,"primary"); return resetBytes(w === null ? null : w.resetInSeconds); }
+export function fiveHourReset(model: Model): Uint8Array { const w=windowFor(model,"primary"); return w === null ? asciiBytes("--") : resetBytes(w.resetHours, w.resetMinutes); }
 export function fiveHourPace(model: Model): Uint8Array { return paceLabel(model,"primary"); }
 export function weeklyUsed(model: Model): Uint8Array { const w=windowFor(model,"secondary"); return w === null ? asciiBytes("--") : percentBytes(w.usedPercent); }
 export function weeklyRemaining(model: Model): Uint8Array { const p=paceFor(windowFor(model,"secondary")); return p === null ? asciiBytes("--") : percentBytes(p.remainingPercent); }
-export function weeklyReset(model: Model): Uint8Array { const w=windowFor(model,"secondary"); return resetBytes(w === null ? null : w.resetInSeconds); }
+export function weeklyReset(model: Model): Uint8Array { const w=windowFor(model,"secondary"); return w === null ? asciiBytes("--") : resetBytes(w.resetHours, w.resetMinutes); }
 export function weeklyPace(model: Model): Uint8Array { return paceLabel(model,"secondary"); }
 export function fiveHourUsageSeries(model: Model): readonly number[] { const w=windowFor(model,"primary"); return w === null ? EMPTY_SERIES : [w.usedPercent]; }
 export function fiveHourTimeSeries(model: Model): readonly number[] { const p=paceFor(windowFor(model,"primary")); return p === null ? EMPTY_SERIES : [p.expectedUsedPercent]; }

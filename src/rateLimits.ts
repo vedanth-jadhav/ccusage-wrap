@@ -4,8 +4,8 @@ export type RateLimitState = "idle" | "loading" | "ready" | "failed";
 
 export interface RateWindowSnapshot {
   readonly usedPercent: number;
-  readonly resetInSeconds: number;
-  readonly windowSeconds: number;
+  readonly resetHours: number;
+  readonly resetMinutes: number;
   readonly expectedUsedPercent: number;
 }
 
@@ -23,7 +23,6 @@ export interface PaceSnapshot {
 }
 
 const EMPTY = asciiBytes("");
-const MAX_WINDOW_SECONDS = 31536000;
 
 function lineValue(body: Uint8Array, key: string): Uint8Array {
   const prefix = asciiBytes(`${key}=`);
@@ -46,30 +45,24 @@ function parseAsciiNumber(value: Uint8Array): number | null {
     const c = value[i];
     if (c < 48 || c > 57) return null;
     n = n * 10 + (c - 48);
-    if (!Number.isSafeInteger(n)) return null;
+    if (n > 1000000) return null;
   }
-  if (!(n >= 0)) return null;
-  return Math.trunc(n);
+  return n;
 }
 
 function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWindowSnapshot | null {
   const usedPercent = parseAsciiNumber(lineValue(body, `${prefix}_used`));
-  const resetInSeconds = parseAsciiNumber(lineValue(body, `${prefix}_reset_in`));
-  const windowSeconds = parseAsciiNumber(lineValue(body, `${prefix}_seconds`));
+  const resetHours = parseAsciiNumber(lineValue(body, `${prefix}_reset_hours`));
+  const resetMinutes = parseAsciiNumber(lineValue(body, `${prefix}_reset_minutes`));
   const expectedUsedPercent = parseAsciiNumber(lineValue(body, `${prefix}_expected`));
-  if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null) return null;
-  if (!(usedPercent >= 0) || !(resetInSeconds >= 0) || !(windowSeconds > 0) || !(expectedUsedPercent >= 0)) return null;
-
-  let safeReset = Math.trunc(resetInSeconds);
-  if (safeReset > MAX_WINDOW_SECONDS) safeReset = MAX_WINDOW_SECONDS;
-  let safeWindow = Math.trunc(windowSeconds);
-  if (safeWindow > MAX_WINDOW_SECONDS) safeWindow = MAX_WINDOW_SECONDS;
+  if (usedPercent === null || resetHours === null || resetMinutes === null || expectedUsedPercent === null) return null;
+  if (resetHours > 8760 || resetMinutes > 59) return null;
 
   return {
-    usedPercent: Math.trunc(usedPercent > 100 ? 100 : usedPercent),
-    resetInSeconds: safeReset / 1.0,
-    windowSeconds: safeWindow / 1.0,
-    expectedUsedPercent: Math.trunc(expectedUsedPercent > 100 ? 100 : expectedUsedPercent),
+    usedPercent: usedPercent > 100 ? 100 : usedPercent,
+    resetHours,
+    resetMinutes,
+    expectedUsedPercent: expectedUsedPercent > 100 ? 100 : expectedUsedPercent,
   };
 }
 

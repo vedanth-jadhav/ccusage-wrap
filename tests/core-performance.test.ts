@@ -25,7 +25,7 @@ test("opening live limits is lazy and updates section immediately", () => {
 
 test("reopening populated limits does not spawn another fetch", () => {
   const [model] = initialModel();
-  const body = new TextEncoder().encode("plan=plus\nprimary_used=10\nprimary_reset_in=900\nprimary_seconds=18000\nprimary_expected=5\n");
+  const body = new TextEncoder().encode("plan=plus\nprimary_used=10\nprimary_reset_hours=0\nprimary_reset_minutes=15\nprimary_expected=5\n");
   const [ready] = update(model, { kind: "rate_probe_done", code: 0, output: body });
   const [again] = update(ready, { kind: "show_limits" });
   assert.equal(again.rateState, "ready");
