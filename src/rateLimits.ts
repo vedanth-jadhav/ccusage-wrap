@@ -23,6 +23,7 @@ export interface PaceSnapshot {
 }
 
 const EMPTY = asciiBytes("");
+const MAX_WINDOW_SECONDS = 31_536_000;
 
 function lineValue(body: Uint8Array, key: string): Uint8Array {
   const prefix = asciiBytes(`${key}=`);
@@ -47,7 +48,21 @@ function parseAsciiNumber(value: Uint8Array): number | null {
     n = n * 10 + (c - 48);
     if (!Number.isSafeInteger(n)) return null;
   }
-  return n;
+  return Math.trunc(n);
+}
+
+function boundedPercent(value: number): number {
+  const whole = Math.trunc(value);
+  if (whole < 0) return 0;
+  if (whole > 100) return 100;
+  return whole;
+}
+
+function boundedSeconds(value: number): number {
+  const whole = Math.trunc(value);
+  if (whole < 0) return 0;
+  if (whole > MAX_WINDOW_SECONDS) return MAX_WINDOW_SECONDS;
+  return whole;
 }
 
 function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWindowSnapshot | null {
@@ -55,15 +70,14 @@ function parseWindow(body: Uint8Array, prefix: "primary" | "secondary"): RateWin
   const resetInSeconds = parseAsciiNumber(lineValue(body, `${prefix}_reset_in`));
   const windowSeconds = parseAsciiNumber(lineValue(body, `${prefix}_seconds`));
   const expectedUsedPercent = parseAsciiNumber(lineValue(body, `${prefix}_expected`));
-  if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null || windowSeconds <= 0) return null;
-  const boundedUsed = usedPercent < 0 ? 0 : usedPercent > 100 ? 100 : usedPercent;
-  const boundedReset = resetInSeconds < 0 ? 0 : resetInSeconds;
-  const boundedExpected = expectedUsedPercent < 0 ? 0 : expectedUsedPercent > 100 ? 100 : expectedUsedPercent;
+  if (usedPercent === null || resetInSeconds === null || windowSeconds === null || expectedUsedPercent === null) return null;
+  const boundedWindow = boundedSeconds(windowSeconds);
+  if (boundedWindow <= 0) return null;
   return {
-    usedPercent: boundedUsed,
-    resetInSeconds: boundedReset,
-    windowSeconds,
-    expectedUsedPercent: boundedExpected,
+    usedPercent: boundedPercent(usedPercent),
+    resetInSeconds: boundedSeconds(resetInSeconds),
+    windowSeconds: boundedWindow,
+    expectedUsedPercent: boundedPercent(expectedUsedPercent),
   };
 }
 
