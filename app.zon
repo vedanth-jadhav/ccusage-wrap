@@ -3,7 +3,7 @@
     .name = "ccusage-wrap",
     .display_name = "ccusage",
     .description = "A native visual workspace for ccusage token and cost analytics.",
-    .version = "0.1.0",
+    .version = "0.1.1",
     .platforms = .{"macos"},
     .permissions = .{ "view", "command", "network" },
     .capabilities = .{ "native_views", "gpu_surfaces", "network" },
